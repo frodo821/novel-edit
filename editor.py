@@ -49,6 +49,7 @@ class NovelEditor(Frame):
         edit_menu.Append(2, "Post")
         edit_menu.AppendSeparator()
         edit_menu.Append(7, "&Ruby\tCtrl+R")
+        edit_menu.Append(9, "&Dotmarks\tCtrl+Shift+D")
         edit_menu.Append(8, "&Paragraph\tCtrl+Space")
 
         file_menu.Append(3, "&New\tCtrl+N")
@@ -69,32 +70,41 @@ class NovelEditor(Frame):
         self.Bind(EVT_MENU, self.Save, id=6)
         self.Bind(EVT_MENU, self.SetRuby, id=7)
         self.Bind(EVT_MENU, self.SetParagraphSpaces, id=8)
+        self.Bind(EVT_MENU, self.Dotmarks, id=9)
 
         self.pvframe = HideFrame(None, -1, "プレビュー")
         self.pvctrl: WebView = WebView.New(self.pvframe)
+        self.pvctrl.SetCanFocus(False)
         self.Bind(EVT_TEXT, self.Reload, id=101)
         app.SetTopWindow(self)
         self.application = app
         self.Show()
 
-    def SetRuby(self, e=None):
+    def SetRuby(self, e=None, *, ruby_=None):
         slc = self.editor.GetSelection()
         if slc[0] == slc[1]:
             MessageBox("選択されたテキストがありません", "エラー", style=OK)
             return
-        dialog = TextEntryDialog(None, "振り仮名を入力してください", "振り仮名を設定")
-        if dialog.ShowModal() == ID_CANCEL:
-            return
-        dialog.Destroy()
-        res = dialog.GetValue()
-        if not res:
-            MessageBox("空欄にはできません", "エラー", style=OK)
-            return
+        if not ruby_:
+            dialog = TextEntryDialog(None, "振り仮名を入力してください", "振り仮名を設定")
+            if dialog.ShowModal() == ID_CANCEL:
+                return
+            dialog.Destroy()
+            res = dialog.GetValue()
+            if not res:
+                MessageBox("空欄にはできません", "エラー", style=OK)
+                return
+        else:
+            res = ruby_
         tmp = self.editor.GetValue()
         newlines = tmp[:slc[0]].count("\n")
         slc = slc[0] - newlines, slc[1] - newlines
         tmp = tmp[:slc[0]], tmp[slc[0]:slc[1]], tmp[slc[1]:]
         self.editor.SetValue(tmp[0] + f"|{tmp[1]}《{res}》" + tmp[2])
+
+    def Dotmarks(self, e=None):
+        length = self.editor.GetSelection()
+        self.SetRuby(ruby_="・" * (length[1] - length[0]))
 
     def SetParagraphSpaces(self, e=None):
         self.editor.SetValue(
@@ -153,7 +163,7 @@ class NovelEditor(Frame):
     def Preview(self, e):
         self.pvctrl.SetPage(parse(self.editor.GetValue()), "")
         self.pvframe.Show()
-        self.editor.SetFocus()
+        #self.editor.SetFocus()
 
     def Reload(self, e):
         self.changed = True
@@ -161,7 +171,7 @@ class NovelEditor(Frame):
             self.SetTitle(f"{BASETITLE} - (変更){basename(self.File)}")
         self.pvctrl.SetPage(parse(self.editor.GetValue()), "")
         self.pvframe.Refresh()
-        self.editor.SetFocus()
+        #self.editor.SetFocus()
 
     def _sent(self, msg="投稿しました！"):
         def dispose():
