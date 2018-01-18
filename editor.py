@@ -6,9 +6,10 @@
 from os.path import basename, expanduser
 from threading import Timer
 
-from wx import (EVT_MENU, EVT_TEXT, ID_CANCEL, ID_OK, OK, TE_MULTILINE, App,
-                BoxSizer, FileSelector, Font, Frame, Menu, MenuBar, MessageBox,
-                MessageDialog, StatusBar, TextCtrl, TextEntryDialog, ToolBar)
+from wx import (CANCEL, EVT_MENU, EVT_TEXT, ID_OK, ID_CANCEL, ID_YES, NO, OK,
+                TE_MULTILINE, YES, App, BoxSizer, FileSelector, Font, Frame,
+                Menu, MenuBar, MessageBox, MessageDialog, StatusBar, TextCtrl,
+                TextEntryDialog, ToolBar)
 from wx.html2 import WebView
 
 from .config import Canceled, load_config
@@ -194,6 +195,17 @@ class NovelEditor(Frame):
             return
 
     def Destroy(self):
+        if self.changed:
+            dlg = MessageDialog(
+                self, "編集した内容を保存しますか？",
+                "終了", style=YES|NO|CANCEL)
+            stat = dlg.ShowModal()
+            if stat == ID_YES:
+                self.Save()
+            elif stat == ID_CANCEL:
+                dlg.Destroy()
+                return False
+            dlg.Destroy()
         self.application.ExitMainLoop()
         return True
 
