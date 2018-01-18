@@ -117,8 +117,8 @@ class NovelEditor(Frame):
     def Open(self, e=None):
         if self.changed:
             dlg = MessageDialog(
-                self, "編集中の内容を保存して新規ファイルを作成しますか？",
-                "新規ファイル")
+                self, "編集中の内容を保存して既存ファイルを開きますか？",
+                "確認", style=OK|CANCEL)
             if dlg.ShowModal() == ID_OK:
                 self.Save()
             dlg.Destroy()
@@ -126,19 +126,21 @@ class NovelEditor(Frame):
         if not file:
             return
         self.File = file
-        self.changed = False
         with open(self.File, encoding='utf-8') as f:
             self.editor.SetValue(f.read())
         self.SetTitle(f"{BASETITLE} - {basename(self.File)}")
+        self.changed = False
 
     def New(self, e=None):
         if self.changed:
             dlg = MessageDialog(
                 self, "編集中の内容を保存して新規ファイルを作成しますか？",
-                "新規ファイル")
+                "新規ファイル", style=OK|CANCEL)
             if dlg.ShowModal() == ID_OK:
                 self.Save()
             dlg.Destroy()
+        self.editor.SetValue("")
+        self.SetTitle(f"{BASETITLE} - *Untitled*")
         self.changed = False
         self.File = None
 
@@ -146,8 +148,12 @@ class NovelEditor(Frame):
         self.changed = False
         self.SetTitle(f"{BASETITLE} - {basename(self.File)}")
         if self.File:
-            with open(self.File, 'w', encoding='utf-8') as f:
-                f.write(self.editor.GetValue())
+            try:
+                with open(self.File, 'w', encoding='utf-8') as f:
+                    f.write(self.editor.GetValue())
+            except PermissionError as err:
+                self.stat.SetStatusText(f"保存できませんでした。{str(err)}")
+                Timer(2, lambda: self.stat.SetStatusText("")).start()
             return
         self.SaveAs()
 
@@ -156,8 +162,13 @@ class NovelEditor(Frame):
         if not file:
             return
         self.File = file
-        with open(self.File, 'w', encoding='utf-8') as f:
-            f.write(self.editor.GetValue())
+        try:
+            with open(self.File, 'w', encoding='utf-8') as f:
+                f.write(self.editor.GetValue())
+        except PermissionError as err:
+            self.stat.SetStatusText(f"保存できませんでした。{str(err)}")
+            Timer(2, lambda: self.stat.SetStatusText("")).start()
+            return
         self.changed = False
         self.SetTitle(f"{BASETITLE} - {basename(self.File)}")
 
