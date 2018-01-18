@@ -3,15 +3,17 @@
 エディタGUIクラス、関数定義
 """
 
-from os.path import expanduser, basename
-from wx import App, ToolBar, Frame, TextCtrl, TE_MULTILINE, BoxSizer, MenuBar, Menu
-from wx import TextEntryDialog, FileSelector, MessageDialog, MessageBox, Font
-from wx import EVT_MENU, EVT_TEXT, ID_OK, ID_CANCEL, OK
+from os.path import basename, expanduser
+from threading import Timer
+
+from wx import (EVT_MENU, EVT_TEXT, ID_CANCEL, ID_OK, OK, TE_MULTILINE, App,
+                BoxSizer, FileSelector, Font, Frame, Menu, MenuBar, MessageBox,
+                MessageDialog, StatusBar, TextCtrl, TextEntryDialog, ToolBar)
 from wx.html2 import WebView
 
-from .parsing import parse
-from .config import load_config, Canceled
+from .config import Canceled, load_config
 from .mail import send
+from .parsing import parse
 
 BASETITLE = "小説エディタ(β)"
 
@@ -172,7 +174,9 @@ class NovelEditor(Frame):
         dialog.ShowModal()
         dialog.Destroy()
         try:
-            send(dialog.GetValue(), self.editor.GetValue())
+            stat: StatusBar = self.OnCreateStatusBar()
+            stat.SetStatusText("投稿中...")
+            send(dialog.GetValue(), self.editor.GetValue(), lambda: _sent(stat))
         except ValueError as err:
             MessageBox(str(err), "エラー", style=OK)
             return
@@ -180,6 +184,12 @@ class NovelEditor(Frame):
     def Destroy(self):
         self.application.ExitMainLoop()
         return True
+
+
+def _sent(sbar: StatusBar):
+    sbar.SetStatusText("投稿完了しました！")
+    disposer = Timer(2, sbar.Destroy)
+    disposer.start()
 
 class HideFrame(Frame):
     def Destroy(self):
