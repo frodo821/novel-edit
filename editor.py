@@ -163,7 +163,6 @@ class NovelEditor(Frame):
     def Preview(self, e):
         self.pvctrl.SetPage(parse(self.editor.GetValue()), "")
         self.pvframe.Show()
-        #self.editor.SetFocus()
 
     def Reload(self, e):
         self.changed = True
@@ -171,7 +170,6 @@ class NovelEditor(Frame):
             self.SetTitle(f"{BASETITLE} - (変更){basename(self.File)}")
         self.pvctrl.SetPage(parse(self.editor.GetValue()), "")
         self.pvframe.Refresh()
-        #self.editor.SetFocus()
 
     def _sent(self, msg="投稿しました！"):
         def dispose():
