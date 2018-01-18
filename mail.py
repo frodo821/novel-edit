@@ -8,7 +8,6 @@ from email.mime.text import MIMEText
 from email.utils import formatdate
 from threading import Thread
 from warnings import warn
-from .config import config
 
 def create_message(subj, msg, from_, to):
     mes = MIMEText(msg, _subtype='html', _charset='utf-8')
@@ -18,7 +17,7 @@ def create_message(subj, msg, from_, to):
     mes["Date"] = formatdate(localtime=True)
     return mes
 
-def send(sbj, body, callback=lambda: None):
+def send(sbj, body, config, callback=lambda: None):
     if not sbj:
         raise ValueError("小説タイトルは必ず設定する必要があります")
     def __post():
@@ -29,7 +28,11 @@ def send(sbj, body, callback=lambda: None):
         s = smtplib.SMTP("smtp.gmail.com", 587)
         s.starttls()
         s.ehlo()
-        s.login(from_, passwd)
+        try:
+            s.login(from_, passwd)
+        except BaseException as e:
+            callback(f"投稿に失敗しました: {str(e)}")
+            return
         s.sendmail(from_, to, msg.as_string())
         s.quit()
         try:

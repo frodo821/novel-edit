@@ -35,6 +35,7 @@ class NovelEditor(Frame):
     def __init__(self, app: App):
         super(Frame, self).__init__(None)
         self.editor = TextCtrl(self, 101, style=TE_MULTILINE)
+        self.stat: StatusBar = self.CreateStatusBar()
         self.SetTitle(f"{BASETITLE} - *Untitled*")
         self.SetSize(720, 540)
         self.File: str = None
@@ -162,34 +163,31 @@ class NovelEditor(Frame):
         self.pvframe.Refresh()
         self.editor.SetFocus()
 
+    def _sent(self, msg="投稿しました！"):
+        def dispose():
+            self.stat.SetStatusText("")
+        self.stat.SetStatusText(msg)
+        Timer(2, dispose).start()
+
     def Post(self, e):
-        try:
-            load_config()
-        except Canceled:
-            return
-        except ValueError as err:
-            MessageBox(str(err), "エラー", style=OK)
+        if len(self.editor.GetValue()) < 10:
+            MessageBox("投稿するためには10文字以上必要です。", "エラー", style=OK)
             return
         dialog = TextEntryDialog(None, "小説のタイトルを設定してください", "小説タイトルを設定")
         dialog.ShowModal()
         dialog.Destroy()
         try:
-            stat: StatusBar = self.CreateStatusBar()
-            stat.SetStatusText("投稿中...")
-            send(dialog.GetValue(), self.editor.GetValue(), lambda: _sent(stat))
+            self.stat.SetStatusText("投稿中...")
+            send(dialog.GetValue(), self.editor.GetValue(), load_config(), self._sent)
         except ValueError as err:
             MessageBox(str(err), "エラー", style=OK)
+            return
+        except Canceled:
             return
 
     def Destroy(self):
         self.application.ExitMainLoop()
         return True
-
-
-def _sent(sbar: StatusBar):
-    sbar.SetStatusText("投稿完了しました！")
-    disposer = Timer(2, sbar.Destroy)
-    disposer.start()
 
 class HideFrame(Frame):
     def Destroy(self):

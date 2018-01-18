@@ -15,19 +15,17 @@ default_wd = (join(getenv("APPDATA"), "frodo", "novedit")
 class Canceled(BaseException):
     pass
 
-config = {
-    "user": {
-        "password": "",
-        "mailaddr": ""
-    },
-    "post-to": ""
-}
-
 config_path = join(default_wd, ".neblob")
 
 def load_config():
-    global config
     if not exists(config_path):
+        config = {
+            "user": {
+                "password": "",
+                "mailaddr": ""
+            },
+            "post-to": ""
+        }
         dialog = TextEntryDialog(None, "メールアドレスを入力してください。", "投稿元アドレスを設定")
         if dialog.ShowModal() == ID_CANCEL:
             raise Canceled()
