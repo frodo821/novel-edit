@@ -174,7 +174,7 @@ class NovelEditor(Frame):
         dialog.ShowModal()
         dialog.Destroy()
         try:
-            stat: StatusBar = self.OnCreateStatusBar()
+            stat: StatusBar = self.CreateStatusBar()
             stat.SetStatusText("投稿中...")
             send(dialog.GetValue(), self.editor.GetValue(), lambda: _sent(stat))
         except ValueError as err:
