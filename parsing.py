@@ -5,14 +5,28 @@
 
 import re
 from functools import wraps
+from os.path import join, dirname
+
+from .config import default_wd
 
 BEGIN = "《"
 END = "》"
 
+assets = join(dirname(__file__), "assets")
+
 def html(func):
     @wraps(func)
     def _wrap(text):
-        ret = f"<html><body>{func(text)}</body></html>"
+        ret = f"""<!doctype html>
+<html>
+    <head>
+        <title>Preview</title>
+        <link rel="stylesheet" href="{join(assets, "default.css")}" type="text/css"/>
+    </head>
+    <body>
+        {func(text)}
+    </body>
+</html>"""
         #print(ret)
         return ret
     return _wrap

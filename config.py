@@ -9,12 +9,11 @@ from os import name, getenv, makedirs
 
 from wx import TextEntryDialog, ID_CANCEL
 
+default_wd = (join(getenv("APPDATA"), "frodo", "novedit")
+              if name == 'nt' else expanduser("~/novedit"))
 
 class Canceled(BaseException):
     pass
-
-default_wd = (join(getenv("APPDATA"), "frodo", "novedit")
-              if name == 'nt' else expanduser("~/novedit"))
 
 config = {
     "user": {

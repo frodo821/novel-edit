@@ -36,6 +36,7 @@ class NovelEditor(Frame):
         self.SetTitle(f"{BASETITLE} - *Untitled*")
         self.SetSize(720, 540)
         self.File: str = None
+        self.changed = False
 
         menubar: MenuBar = MenuBar()
         edit_menu: Menu = Menu()
@@ -61,14 +62,13 @@ class NovelEditor(Frame):
         self.Bind(EVT_MENU, self.Post, id=2)
         self.Bind(EVT_MENU, self.New, id=3)
         self.Bind(EVT_MENU, self.Open, id=4)
-        self.Bind(EVT_MENU, self.Save, id=5)
-        self.Bind(EVT_MENU, self.SaveAs, id=6)
+        self.Bind(EVT_MENU, self.SaveAs, id=5)
+        self.Bind(EVT_MENU, self.Save, id=6)
         self.Bind(EVT_MENU, self.SetRuby, id=7)
         self.Bind(EVT_MENU, self.SetParagraphSpaces, id=8)
 
         self.pvframe = HideFrame(None, -1, "プレビュー")
         self.pvctrl: WebView = WebView.New(self.pvframe)
-        self.pvctrl.SetFont(Font("Yu Gothic UI"))
         self.Bind(EVT_TEXT, self.Reload, id=101)
         app.SetTopWindow(self)
         self.application = app
@@ -101,38 +101,50 @@ class NovelEditor(Frame):
                  for l in self.editor.GetValue().splitlines()]))
 
     def Open(self, e=None):
-        file = FileSelector("開くファイルを選択", expanduser('~'), "", "*.wnf")
-        if not file:
-            return
-        self.File = file
-        with open(self.File) as f:
-            self.editor.SetValue(f.read())
-        self.SetTitle(f"{BASETITLE} - {basename(self.File)}")
-
-    def New(self, e=None):
-        if self.editor.GetValue():
+        if self.changed:
             dlg = MessageDialog(
                 self, "編集中の内容を保存して新規ファイルを作成しますか？",
                 "新規ファイル")
             if dlg.ShowModal() == ID_OK:
                 self.Save()
             dlg.Destroy()
+        file = FileSelector("開くファイルを選択", expanduser('~'), "", "*.wnf")
+        if not file:
+            return
+        self.File = file
+        self.changed = False
+        with open(self.File, encoding='utf-8') as f:
+            self.editor.SetValue(f.read())
+        self.SetTitle(f"{BASETITLE} - {basename(self.File)}")
+
+    def New(self, e=None):
+        if self.changed:
+            dlg = MessageDialog(
+                self, "編集中の内容を保存して新規ファイルを作成しますか？",
+                "新規ファイル")
+            if dlg.ShowModal() == ID_OK:
+                self.Save()
+            dlg.Destroy()
+        self.changed = False
         self.File = None
 
     def Save(self, e=None):
+        self.changed = False
+        self.SetTitle(f"{BASETITLE} - {basename(self.File)}")
         if self.File:
-            with open(self.File, 'w') as f:
+            with open(self.File, 'w', encoding='utf-8') as f:
                 f.write(self.editor.GetValue())
             return
         self.SaveAs()
 
     def SaveAs(self, e=None):
-        file = FileSelector("保存します", expanduser('~'), "untitled.wnf", "*.wnf")
+        file = FileSelector("保存します", expanduser('~'), "untitled.wnf", "wnf", "*.wnf")
         if not file:
             return
         self.File = file
-        with open(self.File, 'w') as f:
+        with open(self.File, 'w', encoding='utf-8') as f:
             f.write(self.editor.GetValue())
+        self.changed = False
         self.SetTitle(f"{BASETITLE} - {basename(self.File)}")
 
     def Preview(self, e):
@@ -141,6 +153,9 @@ class NovelEditor(Frame):
         self.editor.SetFocus()
 
     def Reload(self, e):
+        self.changed = True
+        if self.File:
+            self.SetTitle(f"{BASETITLE} - (変更){basename(self.File)}")
         self.pvctrl.SetPage(parse(self.editor.GetValue()), "")
         self.pvframe.Refresh()
         self.editor.SetFocus()
