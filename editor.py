@@ -3,10 +3,12 @@
 エディタGUIクラス、関数定義
 """
 
+from os import linesep
 from os.path import basename, expanduser
+from subprocess import Popen as call
 from threading import Timer
 
-from wx import (CANCEL, EVT_MENU, EVT_TEXT, ID_OK, ID_CANCEL, ID_YES, NO, OK,
+from wx import (CANCEL, EVT_MENU, EVT_TEXT, ID_CANCEL, ID_OK, ID_YES, NO, OK,
                 TE_MULTILINE, YES, App, BoxSizer, FileSelector, Font, Frame,
                 Menu, MenuBar, MessageBox, MessageDialog, StatusBar, TextCtrl,
                 TextEntryDialog, ToolBar)
@@ -14,12 +16,14 @@ from wx.html2 import WebView
 
 from .config import Canceled, load_config
 from .mail import send
-from .parsing import parse
+from .parsing import count, parse
 
 BASETITLE = "小説エディタ(β)"
 
-NoNewPara = [
+NoNewPara = {
     "　", "\t",
+    "[", "]", "(",
+    ")", "―",
     "\v", " ",
     "「", "」",
     "（", "）",
@@ -30,13 +34,15 @@ NoNewPara = [
     "□", "■",
     "○", "◎",
     "●", "◯"
-    ]
+}
 
 class NovelEditor(Frame):
     def __init__(self, app: App):
         super(Frame, self).__init__(None)
         self.editor = TextCtrl(self, 101, style=TE_MULTILINE)
         self.stat: StatusBar = self.CreateStatusBar()
+        self.stat.SetFieldsCount(2)
+        self.stat.SetStatusWidths([-1, -5])
         self.SetTitle(f"{BASETITLE} - *Untitled*")
         self.SetSize(720, 540)
         self.File: str = None
@@ -76,6 +82,7 @@ class NovelEditor(Frame):
         self.pvframe = HideFrame(None, -1, "プレビュー")
         self.pvctrl: WebView = WebView.New(self.pvframe)
         self.pvctrl.SetCanFocus(False)
+        self.pvframe.SetCanFocus(False)
         self.Bind(EVT_TEXT, self.Reload, id=101)
         app.SetTopWindow(self)
         self.application = app
@@ -98,10 +105,16 @@ class NovelEditor(Frame):
         else:
             res = ruby_
         tmp = self.editor.GetValue()
-        newlines = tmp[:slc[0]].count("\n")
+        if linesep == "\r\n":
+            newlines = tmp[:slc[0]].count("\n")
+        else:
+            newlines = 0
         slc = slc[0] - newlines, slc[1] - newlines
         tmp = tmp[:slc[0]], tmp[slc[0]:slc[1]], tmp[slc[1]:]
+        if linesep in tmp[1]:
+            MessageBox("改行を挟むことはできません。", "エラー", style=OK)
         self.editor.SetValue(tmp[0] + f"|{tmp[1]}《{res}》" + tmp[2])
+        self.editor.SetInsertionPoint(slc[1] + newlines + len(res) + 3)
 
     def Dotmarks(self, e=None):
         length = self.editor.GetSelection()
@@ -109,10 +122,9 @@ class NovelEditor(Frame):
 
     def SetParagraphSpaces(self, e=None):
         self.editor.SetValue(
-            "\n".join(
-                [(l if l[0] in NoNewPara
-                  else f"　{l}")
-                 for l in self.editor.GetValue().splitlines()]))
+            "\n".join([(l if l.startswith(tuple(NoNewPara)) or not l
+                        else f"　{l}")
+                       for l in self.editor.GetValue().splitlines()]))
 
     def Open(self, e=None):
         if self.changed:
@@ -132,17 +144,7 @@ class NovelEditor(Frame):
         self.changed = False
 
     def New(self, e=None):
-        if self.changed:
-            dlg = MessageDialog(
-                self, "編集中の内容を保存して新規ファイルを作成しますか？",
-                "新規ファイル", style=OK|CANCEL)
-            if dlg.ShowModal() == ID_OK:
-                self.Save()
-            dlg.Destroy()
-        self.editor.SetValue("")
-        self.SetTitle(f"{BASETITLE} - *Untitled*")
-        self.changed = False
-        self.File = None
+        call(["pythonw", "-m", __package__])
 
     def Save(self, e=None):
         self.changed = False
@@ -152,8 +154,8 @@ class NovelEditor(Frame):
                 with open(self.File, 'w', encoding='utf-8') as f:
                     f.write(self.editor.GetValue())
             except PermissionError as err:
-                self.stat.SetStatusText(f"保存できませんでした。{str(err)}")
-                Timer(2, lambda: self.stat.SetStatusText("")).start()
+                self.stat.SetStatusText(f"保存できませんでした。{str(err)}", 1)
+                Timer(2, lambda: self.stat.SetStatusText(""), 1).start()
             return
         self.SaveAs()
 
@@ -166,8 +168,8 @@ class NovelEditor(Frame):
             with open(self.File, 'w', encoding='utf-8') as f:
                 f.write(self.editor.GetValue())
         except PermissionError as err:
-            self.stat.SetStatusText(f"保存できませんでした。{str(err)}")
-            Timer(2, lambda: self.stat.SetStatusText("")).start()
+            self.stat.SetStatusText(f"保存できませんでした。{str(err)}", 1)
+            Timer(2, lambda: self.stat.SetStatusText("", 1)).start()
             return
         self.changed = False
         self.SetTitle(f"{BASETITLE} - {basename(self.File)}")
@@ -180,13 +182,16 @@ class NovelEditor(Frame):
         self.changed = True
         if self.File:
             self.SetTitle(f"{BASETITLE} - (変更){basename(self.File)}")
-        self.pvctrl.SetPage(parse(self.editor.GetValue()), "")
+        val = self.editor.GetValue()
+        self.pvctrl.SetPage(parse(val), "")
+        self.SetStatusText(f"{count(val)}文字", 0)
         self.pvframe.Refresh()
+        self.editor.SetFocus()
 
     def _sent(self, msg="投稿しました！"):
         def dispose():
-            self.stat.SetStatusText("")
-        self.stat.SetStatusText(msg)
+            self.stat.SetStatusText("", 1)
+        self.stat.SetStatusText(msg, 1)
         Timer(2, dispose).start()
 
     def Post(self, e):
@@ -197,7 +202,7 @@ class NovelEditor(Frame):
         dialog.ShowModal()
         dialog.Destroy()
         try:
-            self.stat.SetStatusText("投稿中...")
+            self.stat.SetStatusText("投稿中...", 1)
             send(dialog.GetValue(), self.editor.GetValue(), load_config(), self._sent)
         except ValueError as err:
             MessageBox(str(err), "エラー", style=OK)

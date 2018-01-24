@@ -36,3 +36,7 @@ def parse(text):
     return re.sub(fr"\|([^{BEGIN}]*?){BEGIN}([^{END}]*?){END}",
                   r"<ruby>\1<rt>\2</rt></ruby>",
                   text.replace("\r", "").replace("\n", "<br />"))
+
+def count(text):
+    return len(re.sub(fr"\|([^{BEGIN}]*?){BEGIN}([^{END}]*?){END}",
+                      r"\1", text.replace("\r", "")))
